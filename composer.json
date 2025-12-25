@@ -1,0 +1,47 @@
+{
+	"name": "forrest79/strict-types",
+	"description": "@ToDo - TypeValidator provides functionality to check types with PHP Doc syntax in runtime and narrow types for PHPStan.",
+	"keywords": ["@todo", "validator", "types", "phpstan", "narrow", "array", "list"],
+	"type": "phpstan-extension",
+	"license": "BSD-3-Clause",
+	"authors": [
+		{
+			"name": "Jakub Trmota",
+			"email": "jakub@trmota.cz"
+		}
+	],
+	"require": {
+		"php": "^8.3"
+ 	},
+	"require-dev": {
+		"forrest79/phpcs": "^2.3",
+		"forrest79/phpcs-ignores": "^0.6",
+		"forrest79/type-validator": "^1.2",
+		"nette/tester": "^2.5",
+		"phpstan/phpstan": "^2.1",
+		"phpstan/phpstan-strict-rules": "^2.0",
+		"shipmonk/phpstan-rules": "^4.3"
+	},
+	"autoload": {
+		"psr-4": {
+			"Forrest79\\": "src"
+		},
+		"files": ["src/functions.php"]
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"Forrest79\\StrictTypes\\Tests\\": "tests/"
+		}
+	},
+	"scripts": {
+		"tests": "tests/run-tests tests",
+		"coverage": "tests/collect-coverage tests",
+		"phpcs": "vendor/bin/phpcs --bootstrap=vendor/forrest79/phpcs-ignores/src/bootstrap-outdated.php -q -s src tests",
+		"phpstan": "vendor/bin/phpstan clear-result-cache && vendor/bin/phpstan analyse src tests -v"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": false
+		}
+	}
+}

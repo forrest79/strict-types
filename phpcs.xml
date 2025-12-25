@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<ruleset name="StrictTypes">
+	<rule ref="./vendor/forrest79/phpcs/Forrest79CodingStandard/ruleset.xml">
+		<exclude name="SlevomatCodingStandard.Classes.RequireAbstractOrFinal.ClassNeitherAbstractNorFinal"/>
+	</rule>
+
+	<rule ref="SlevomatCodingStandard.Files.TypeNameMatchesFileName">
+		<properties>
+			<property name="rootNamespaces" type="array">
+				<element key="src" value="Forrest79"/>
+				<element key="tests" value="Forrest79\StrictTypes\Tests"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
+		<exclude-pattern>tests/PHPStanTest.php</exclude-pattern>
+		<exclude-pattern>tests/RuntimeTest.php</exclude-pattern>
+	</rule>
+
+	<rule ref="Squiz.Functions.GlobalFunction.Found">
+		<exclude-pattern>src/functions.php</exclude-pattern>
+	</rule>
+</ruleset>

@@ -1,0 +1,6 @@
+ignoreErrors:
+	-
+		sniff: Squiz.WhiteSpace.FunctionSpacing.Before
+		message: Expected 2 blank lines before function; 1 found
+		count: 1
+		path: src/functions.php

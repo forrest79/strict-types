@@ -1,0 +1,5 @@
+services:
+	Forrest79StrictTypesDynamicFunctionReturnTypeExtension:
+		class: Forrest79\StrictTypes\PHPStan\Type\DynamicFunctionReturnTypeExtension
+		tags:
+			- phpstan.broker.dynamicFunctionReturnTypeExtension
