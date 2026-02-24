@@ -4,6 +4,7 @@
 [![Monthly Downloads](https://poser.pugx.org/forrest79/strict-types/d/monthly)](//packagist.org/packages/forrest79/strict-types)
 [![License](https://poser.pugx.org/forrest79/strict-types/license)](//packagist.org/packages/forrest79/strict-types)
 [![Build](https://github.com/forrest79/strict-types/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/forrest79/strict-types/actions/workflows/build.yml)
+[![codecov](https://codecov.io/gh/forrest79/strict-types/graph/badge.svg?token=VSFCW66JSZ)](https://codecov.io/gh/forrest79/strict-types)
 
 ## Introduction
 
