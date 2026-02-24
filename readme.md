@@ -4,273 +4,140 @@
 [![Monthly Downloads](https://poser.pugx.org/forrest79/strict-types/d/monthly)](//packagist.org/packages/forrest79/strict-types)
 [![License](https://poser.pugx.org/forrest79/strict-types/license)](//packagist.org/packages/forrest79/strict-types)
 [![Build](https://github.com/forrest79/strict-types/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/forrest79/strict-types/actions/workflows/build.yml)
-[![codecov](https://codecov.io/gh/forrest79/strict-types/graph/badge.svg?token=SYJCJXCZ6I)](https://codecov.io/gh/forrest79/strict-types)
 
 ## Introduction
 
-Validates types using PHP Doc descriptions and narrows types for [PHPStan](https://phpstan.org/).
+Provides global `as_*` functions that **check** (not cast) variable types and narrow them for [PHPStan](https://phpstan.org/). In development, when PHP assertions are enabled, an `AssertionError` is thrown if the variable does not match the expected type.
 
-Imagine you're loading data from some external source. For PHP, this is mostly `mixed` (or some other common type like `array`/`object`), and PHPStan is unhappy with this. If data is some simple type, most of us will add something like:
+These functions are useful anywhere you receive data as `mixed` and need to assert a concrete type — for example, when reading from a database, decoding JSON, or extracting values from arrays. Instead of writing `@var` annotations that are never verified, you let the library both document and validate the type.
 
 ```php
-assert(is_int($data)); // if we know, there will be always an int
-if (!is_int($data)) throw new InvalidDataException(); // if we want to check this also in runtime
+// Before: annotation is not checked at all
+/** @var int $id */
+$id = $row['id'];
+
+// After: type is narrowed for PHPStan and verified in development
+$id = as_int($row['id']);
 ```
 
-Both make PHPStan happy, and you code is also tested (the first example mostly in dev environment, where the assertion is on).
-
-But when the loaded data is a complex type like `list<array{type: int, dates?: array<string, \DateTime>, validator: class-string<IValidator>}>`.
-
-Checking this at runtime and making PHPStan happy is now harder. The goal of this library is to make this as simple as `assert(is_int($data))`.
-
-Use `assert(is_type($data, 'list<array{type: int, dates?: array<string, \DateTime>, validator: class-string<IValidator>}>'))` and the variable is really checked for the correct type at runtime, and the type is also narrowed for PHPStan.
-
-> Code coverage is computed without PHPStan extension - only the PHP runtime part.
+> **Important:** These functions do **not** cast values. `as_int('42')` will throw in development — the value must already be an `int`.
 
 ## Installation
 
-To use this extension, require it in [Composer](https://getcomposer.org/):
-
 ```
-composer require --dev forrest79/type-validator
+composer require forrest79/strict-types
 ```
 
-> You probably only want this extension for development, but it can also be used in production (omit `--dev`).
-
-## Using
-
-There is one global function `is_type(mixed $var, string $type)` and static methods `Forrest79\TypeValidator::isType(mixed $var, string $type): bool` or `Forrest79\TypeValidator::checkType(mixed $var, string $type): void`.
-
-All of them really check the data in `$var` against the type description and there is corresponding PHPStan extension so PHPStan will understand, that `$var` is in described type. 
-
-The function `is_type(mixed $var, string $type)` and method `Forrest79\TypeValidator::isType(mixed $var, string $type)` return a `bool` - true if `$var` matches the `$type`, and `false` otherwise.
-
-The Method `Forrest79\TypeValidator::checkType(mixed $var, string $type)` has no return, but it throws a `CheckException`, if `$var` does not match the `$type`.
-
-Example:
-
-```php
-$arr = [3.14, 5, 10];
-assert(is_type($arr, 'list<float|int>'));
-assert(Forrest79\TypeValidator::isType($arr, 'list<float|int>'));
-Forrest79\TypeValidator::checkType($arr, 'list<float|int>'));
-```
-
-With this you can replace your `@var` annotations:
-
-```php
-/** @var array<string|int, list<Db\Row>> $arr
-$arr = json_decode($data);
-```
-
-With:
-
-```php
-$arr = json_decode($data);
-assert(is_type($arr, 'array<string|int, list<Db\Row>>'));
-```
-
-The benefit is that variable `$arr` is checked for defined type.
-
-Almost all PHPDoc types from PHPStan are supported (more information about supported types is provided later in the docs).
-
-To use this library as PHPStan extension include `extension.neon` in your project's PHPStan config:
+To enable type narrowing in PHPStan, include `extension.neon` in your PHPStan config:
 
 ```yaml
 includes:
-    - vendor/forrest79/type-validator/extension.neon
+    - vendor/forrest79/strict-types/extension.neon
 ```
 
-> Because of PHPStan, the type description must be a static string—nothing can be generated dynamically.
+## Functions
 
-### Use in production
+### Simple type functions
 
-Typically, the `assert` function is disabled in production, so checks are only performed in development/test environments, and there is no need to distribute this library in a production environment.
+| Function | Return type | Accepts |
+|---|---|---|
+| `as_int(mixed $value)` | `int` | `int` |
+| `as_int_nullable(mixed $value)` | `int\|null` | `int` or `null` |
+| `as_float(mixed $value)` | `float` | `float` |
+| `as_float_nullable(mixed $value)` | `float\|null` | `float` or `null` |
+| `as_bool(mixed $value)` | `bool` | `bool` |
+| `as_bool_nullable(mixed $value)` | `bool\|null` | `bool` or `null` |
+| `as_string(mixed $value)` | `string` | `string` |
+| `as_string_nullable(mixed $value)` | `string\|null` | `string` or `null` |
 
-But you can use this for validation also in your production code. Parsing PHPDoc types is not too performance-intensive. This library depends on `phpstan/phpdoc-parser` for parsing types and `nikic/php-parser` for detection fully qualified class names.   
+All functions return the original value unchanged if it matches the expected type, or throw an `AssertionError` in development (when assertions are enabled) if it does not.
 
-
-### FQN (Fully qualified names)
-
-Correct fully qualified names are computed from the current namespace and `use` statements, just like every other item in your PHP source files. However, if you use a `use` statement only for this library, your IDE and PHPCS may mark it as unused because they don't know about this library:
-
-Example:
+### Complex type function
 
 ```php
-namespace App;
-
-use App\Presenter; // this use is marked as unused
-
-assert($presenter, 'class-string<Presenter>'); // even though it is correctly used here
+as_type(mixed $value, string $type): mixed
 ```
 
-One solution is to concatenate the type string with `::class` such as `assert($presenter, 'class-string<\\' . Presenter::class . '>')`. However, this looks very ugly. I prefer to use an FQN in the type description and omit the `use` statement:
+Checks `$value` against a PHPDoc type string. The runtime check (powered by [forrest79/type-validator](https://packagist.org/packages/forrest79/type-validator)) runs only when assertions are enabled, so `forrest79/type-validator` is only a dev dependency. The PHPStan extension included with this library narrows the type for PHPStan regardless of whether assertions are enabled.
+
+> Because of PHPStan, the type description must be a static string — it cannot be generated dynamically.
+
+## Examples
+
+### Simple types
 
 ```php
-namespace App;
+// Reading from a database row (mixed values)
+$id    = as_int($row['id']);          // int
+$name  = as_string($row['name']);     // string
+$score = as_float($row['score']);     // float
+$active = as_bool($row['active']);    // bool
 
-assert($presenter, 'class-string<\App\Presenter>');
+// Nullable variants accept null as well
+$deletedAt = as_string_nullable($row['deleted_at']); // string|null
+$parentId  = as_int_nullable($row['parent_id']);     // int|null
 ```
 
+### Complex types with `as_type()`
 
-### Supported PHPStan - PHPDoc Types
+```php
+// Decoded JSON is mixed — tell PHPStan and verify at runtime
+$data = json_decode($json, true);
+$data = as_type($data, 'array<string, mixed>');
 
-According to https://github.com/phpstan/phpstan/blob/2.1.x/website/src/writing-php-code/phpdoc-types.md
+// A nested structure from an external API
+$items = as_type($response['items'], 'list<array{id: int, name: string, tags: array<string>}>');
 
-✅ supported
-🚫 not supported - doesn't make sense for variables
-❌ not supported
+// class-string narrowing
+$className = as_type($config['handler'], 'class-string<HandlerInterface>');
 
-#### Basic types ✅/🚫/❌
+// Union types
+$value = as_type($input, 'int|string');
+```
 
-- `int`, `integer` ✅
-- `string`, `non-empty-string`, `non-empty-lowercase-string`, `non-empty-uppercase-string`, `truthy-string`, `non-falsy-string`, `lowercase-string`, `uppercase-string` ✅
-- `literal-string`, `non-empty-literal-string` ❌
-- `numeric-string` ✅
-- `__stringandstringable` (`string` or object implementing `Stringable` interface or object with `__toString()` method) ✅
-- `array-key` ✅
-- `bool`, `boolean`, `true`, `false` ✅
-- `null` ✅
-- `float`, `double` ✅
-- `number`, `numeric` ✅
-- `scalar`, `empty-scalar`, `non-empty-scalar` ✅
-- `array`, `associative-array`, `non-empty-array` ✅
-- `list`, `non-empty-list` ✅
-- `iterable` ✅
-- `callable`, `callable-string`, `callable-array`, `callable-object` ✅, `pure-callable` ❌
-- `resource`, `open-resource`, `closed-resource` ✅
-- `object` ✅
-- `empty` ✅
-- `mixed`, `non-empty-mixed` ✅
-- `class-string`, `interface-string`, `trait-string`, `enum-string` ✅
-- `void` 🚫
+### Replacing `@var` annotations
 
-#### Classes and interfaces ✅
+```php
+// Before — the annotation is never enforced
+/** @var array<string, list<int>> $grouped */
+$grouped = buildGroups($data);
 
-#### Integer ranges ✅
+// After — verified in development, narrowed for PHPStan
+$grouped = as_type(buildGroups($data), 'array<string, list<int>>');
+```
 
-- `positive-int` ✅
-- `negative-int` ✅
-- `non-positive-int` ✅
-- `non-negative-int` ✅
-- `non-zero-int` ✅
-- `int<0, 100>` ✅
-- `int<min, 100>` ✅
-- `int<50, max>` ✅
+### Passing narrowed values directly to typed parameters
 
-#### General arrays ✅
+```php
+function processUser(int $id, string $name): void { /* ... */ }
 
-- `Type[]` ✅
-- `array<Type>` ✅
-- `array<int, Type>` ✅
-- `non-empty-array<Type>` ✅
-- `non-empty-array<int, Type>` ✅
+// PHPStan knows the return types, so no extra annotation needed
+processUser(
+    as_int($payload['id']),
+    as_string($payload['name']),
+);
+```
 
-#### Lists ✅
+## How assertions work
 
-- `list<Type>` ✅
-- `non-empty-list<Type>` ✅
+These functions use PHP's built-in `assert()` mechanism internally. The behavior depends on the PHP `assert.active` INI setting:
 
-#### Key and value types of arrays and iterables ❌
+- **Development / test** (`assert.active = 1`, the default): an `AssertionError` is thrown with a descriptive message when the type does not match.
+- **Production** (`assert.active = 0`): the check is skipped entirely and the value is returned immediately with no overhead.
 
-- `key-of<Type::ARRAY_CONST>` ❌
-- `value-of<Type::ARRAY_CONST>` ❌
-- `value-of<BackedEnum>` ❌
+This means you can safely keep `as_*` calls in production code — they become zero-cost passthroughs while still documenting intent and satisfying PHPStan.
 
-#### Iterables ❌ (there can be some side effect while iterate in runtime to check correct type)
+## Supported PHPDoc types for `as_type()`
 
-- `iterable<Type>` ❌
-- `Collection<Type>` ❌
-- `Collection<int, Type>` ❌
-- `Collection|Type[]` ❌
+All types supported by [forrest79/type-validator](https://packagist.org/packages/forrest79/type-validator) are supported, which covers almost all PHPStan PHPDoc types. Key highlights:
 
-#### Union types ✅
-
-- `Type1|Type2` ✅
-
-#### Intersection types ✅
-
-- `Type1&Type2` ✅
-
-#### Parentheses ✅
-
-- `(Type1&Type2)|Type3` ✅
-
-#### self, static, parent and $this 🚫
-
-- `self`, `static`, `parent` or `$this` 🚫
-
-#### Generics ✅/🚫/❌ (some yes, some no, some doesn't make sense - concrete info can be found in the other types description) 
-
-#### Conditional return types 🚫
-
-#### Utility types for generics ❌
-
-- `template-type` ❌
-- `new` ❌
-
-#### class-string, interface-string ✅
-
-- `class-string<Foo>` ✅
-- `interface-string<Interface>` ✅
-
-#### Global type aliases ❌
-
-#### Local type aliases ❌
-
-#### Array shapes ✅
-
-- `array{'foo': int, "bar": string}` ✅
-- `array{'foo': int, "bar"?: string}` ✅
-- `array{int, int}` ✅
-- `array{0: int, 1?: int}` ✅
-- `array{foo: int, bar: string}` ✅
-
-#### Object shapes ✅
-
-- `object{'foo': int, "bar": string}` ✅
-- `object{'foo': int, "bar"?: string}` ✅
-- `object{foo: int, bar?: string}` ✅
-- `object{foo: int, bar?: string}&\stdClass` ✅
-
-#### Literals and constants  ✅/❌
-
-- `234` ✅
-- `1.0` ✅
-- `'foo'|'bar'` ✅
-- `Foo::SOME_CONSTANT` ❌
-- `Foo::SOME_CONSTANT|Bar::OTHER_CONSTANT` ❌
-- `self::SOME_*` ❌
-- `Foo::*` ❌
-
-#### Global constants ✅
-
-- `SOME_CONSTANT` ✅
-- `SOME_CONSTANT|OTHER_CONSTANT` ✅
-
-#### Callables ❌ (only simple callable is supported)
-
-- `callable(int, int): string` ❌
-- `callable(int, int=): string` ❌
-- `callable(int $foo, string $bar): void` ❌
-- `callable(string &$bar): mixed` ❌
-- `callable(float ...$floats): (int|null)` ❌
-- `callable(float...): (int|null)` ❌
-- `\Closure(int, int): string` ❌
-- `pure-callable(int, int): string` ❌
-- `pure-Closure(int, int): string` ❌
-
-#### Bottom type 🚫
-
-- `never` 🚫
-- `never-return` 🚫
-- `never-returns` 🚫
-- `no-return` 🚫
-
-#### Integer masks ✅/❌
-
-- `int-mask<1, 2, 4>` ✅
-- `int-mask-of<1|2|4>` ✅
-- `int-mask-of<Foo::INT_*>` ❌
-
-#### Offset access ❌
+- Basic scalars: `int`, `float`, `bool`, `string`, `null`
+- Integer ranges: `positive-int`, `negative-int`, `int<0, 100>`, etc.
+- Arrays: `array<Key, Value>`, `non-empty-array<Value>`, `list<Value>`, `non-empty-list<Value>`
+- Array shapes: `array{id: int, name: string, active?: bool}`
+- Object shapes: `object{foo: int, bar?: string}`
+- Union and intersection: `int|string`, `Countable&Iterator`
+- Class/interface strings: `class-string<Foo>`, `interface-string<Bar>`
+- Literals and constants: `'foo'|'bar'`, `42`, `1.0`
+- Integer masks: `int-mask<1, 2, 4>`, `int-mask-of<1|2|4>`
+- Global constants: `SOME_CONSTANT`
