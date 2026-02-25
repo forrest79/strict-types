@@ -21,12 +21,18 @@ $id = $row['id'];
 $id = as_int($row['id']);
 ```
 
-> **Important:** These functions do **not** cast values. `as_int('42')` will throw in development — the value must already be an `int`.
+> **Important:** These functions do **not** cast values. `as_int('42')` will throw an exception in development — the value must already be an `int`.
 
 ## Installation
 
 ```
 composer require forrest79/strict-types
+```
+
+For development install also [forrest79/type-validator](https://github.com/forrest79/type-validator):
+
+```
+composer require --dev forrest79/type-validator
 ```
 
 To enable type narrowing in PHPStan, include `extension.neon` in your PHPStan config:
@@ -40,16 +46,16 @@ includes:
 
 ### Simple type functions
 
-| Function | Return type | Accepts |
-|---|---|---|
-| `as_int(mixed $value)` | `int` | `int` |
-| `as_int_nullable(mixed $value)` | `int\|null` | `int` or `null` |
-| `as_float(mixed $value)` | `float` | `float` |
-| `as_float_nullable(mixed $value)` | `float\|null` | `float` or `null` |
-| `as_bool(mixed $value)` | `bool` | `bool` |
-| `as_bool_nullable(mixed $value)` | `bool\|null` | `bool` or `null` |
-| `as_string(mixed $value)` | `string` | `string` |
-| `as_string_nullable(mixed $value)` | `string\|null` | `string` or `null` |
+| Function                                         |
+|--------------------------------------------------|
+| `as_int(mixed $value): int`                      |
+| `as_int_nullable(mixed $value): int\|null`       |
+| `as_float(mixed $value): float`                  |
+| `as_float_nullable(mixed $value): float\|null`   |
+| `as_bool(mixed $value): bool`                    |
+| `as_bool_nullable(mixed $value):bool\|null`      |
+| `as_string(mixed $value): string`                |
+| `as_string_nullable(mixed $value): string\|null` |
 
 All functions return the original value unchanged if it matches the expected type, or throw an `AssertionError` in development (when assertions are enabled) if it does not.
 
@@ -96,6 +102,8 @@ $className = as_type($config['handler'], 'class-string<HandlerInterface>');
 $value = as_type($input, 'int|string');
 ```
 
+> All types supported by [forrest79/type-validator](https://github.com/forrest79/type-validator) are supported, which covers almost all PHPStan PHPDoc types.
+
 ### Replacing `@var` annotations
 
 ```php
@@ -118,27 +126,3 @@ processUser(
     as_string($payload['name']),
 );
 ```
-
-## How assertions work
-
-These functions use PHP's built-in `assert()` mechanism internally. The behavior depends on the PHP `assert.active` INI setting:
-
-- **Development / test** (`assert.active = 1`, the default): an `AssertionError` is thrown with a descriptive message when the type does not match.
-- **Production** (`assert.active = 0`): the check is skipped entirely and the value is returned immediately with no overhead.
-
-This means you can safely keep `as_*` calls in production code — they become zero-cost passthroughs while still documenting intent and satisfying PHPStan.
-
-## Supported PHPDoc types for `as_type()`
-
-All types supported by [forrest79/type-validator](https://packagist.org/packages/forrest79/type-validator) are supported, which covers almost all PHPStan PHPDoc types. Key highlights:
-
-- Basic scalars: `int`, `float`, `bool`, `string`, `null`
-- Integer ranges: `positive-int`, `negative-int`, `int<0, 100>`, etc.
-- Arrays: `array<Key, Value>`, `non-empty-array<Value>`, `list<Value>`, `non-empty-list<Value>`
-- Array shapes: `array{id: int, name: string, active?: bool}`
-- Object shapes: `object{foo: int, bar?: string}`
-- Union and intersection: `int|string`, `Countable&Iterator`
-- Class/interface strings: `class-string<Foo>`, `interface-string<Bar>`
-- Literals and constants: `'foo'|'bar'`, `42`, `1.0`
-- Integer masks: `int-mask<1, 2, 4>`, `int-mask-of<1|2|4>`
-- Global constants: `SOME_CONSTANT`
