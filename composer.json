@@ -1,8 +1,8 @@
 {
 	"name": "forrest79/strict-types",
-	"description": "@ToDo - TypeValidator provides functionality to check types with PHP Doc syntax in runtime and narrow types for PHPStan.",
-	"keywords": ["@todo", "validator", "types", "phpstan", "narrow", "array", "list"],
-	"type": "phpstan-extension",
+	"description": "Narrowing and documenting PHP types",
+	"keywords": ["php", "types", "phpstan", "narrow", "array", "list"],
+	"type": "library",
 	"license": "BSD-3-Clause",
 	"authors": [
 		{
@@ -21,6 +21,9 @@
 		"phpstan/phpstan": "^2.1",
 		"phpstan/phpstan-strict-rules": "^2.0",
 		"shipmonk/phpstan-rules": "^4.3"
+	},
+	"suggest": {
+		"forrest79/type-validator": "For PHPStan and as_type() functionality in development mode."
 	},
 	"autoload": {
 		"psr-4": {
